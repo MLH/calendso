@@ -1,9 +1,10 @@
-import getSlots from "@lib/slots";
 import { expect, it } from "@jest/globals";
-import MockDate from "mockdate";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+import MockDate from "mockdate";
+
+import getSlots from "@lib/slots";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -16,7 +17,7 @@ it("can fit 24 hourly slots for an empty day", async () => {
     getSlots({
       inviteeDate: dayjs().add(1, "day"),
       frequency: 60,
-      workingHours: [{ days: [...Array(7).keys()], startTime: 0, endTime: 1440 }],
+      workingHours: [{ days: Array.from(Array(7).keys()), startTime: 0, endTime: 1440 }],
       organizerTimeZone: "Europe/London",
     })
   ).toHaveLength(24);
@@ -28,7 +29,7 @@ it.skip("only shows future booking slots on the same day", async () => {
     getSlots({
       inviteeDate: dayjs(),
       frequency: 60,
-      workingHours: [{ days: [...Array(7).keys()], startTime: 0, endTime: 1440 }],
+      workingHours: [{ days: Array.from(Array(7).keys()), startTime: 0, endTime: 1440 }],
       organizerTimeZone: "GMT",
     })
   ).toHaveLength(12);

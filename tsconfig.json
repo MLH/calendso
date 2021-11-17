@@ -13,11 +13,17 @@
       ],
       "@lib/*": [
         "lib/*"
+      ],
+      "@server/*": [
+        "server/*"
+      ],
+      "@ee/*": [
+        "ee/*"
       ]
     },
-    "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -25,13 +31,20 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve"
+    "useUnknownInCatchVariables": true,
+    "jsx": "preserve",
+    "types": [
+      "@types/jest",
+      "jest-playwright-preset",
+      "expect-playwright"
+    ],
+    "allowJs": false,
+    "incremental": true
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
-    "**/*.tsx",
-    "lib/*.js"
+    "**/*.tsx"
   ],
   "exclude": [
     "node_modules"

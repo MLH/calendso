@@ -1,5 +1,8 @@
-import { IntegrationCalendar, CalendarApiAdapter, CalendarEvent } from "../../calendarClient";
-import { symmetricDecrypt } from "@lib/crypto";
+import { Credential } from "@prisma/client";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import ICAL from "ical.js";
+import { createEvent, DurationObject, Attendee, Person } from "ics";
 import {
   createAccount,
   fetchCalendars,
@@ -9,13 +12,15 @@ import {
   updateCalendarObject,
   deleteCalendarObject,
 } from "tsdav";
-import { Credential } from "@prisma/client";
-import ICAL from "ical.js";
-import { createEvent, DurationObject, Attendee, Person } from "ics";
-import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
-import { stripHtml } from "../../emails/helpers";
+
+import { symmetricDecrypt } from "@lib/crypto";
 import logger from "@lib/logger";
+
+import { IntegrationCalendar, CalendarApiAdapter, CalendarEvent } from "../../calendarClient";
+import { stripHtml } from "../../emails/helpers";
+
+dayjs.extend(utc);
 
 const log = logger.getChildLogger({ prefix: ["[[lib] apple calendar"] });
 
@@ -250,10 +255,11 @@ export class AppleCalendar implements CalendarApiAdapter {
         .filter((calendar) => {
           return calendar.components?.includes("VEVENT");
         })
-        .map((calendar) => ({
+        .map((calendar, index) => ({
           externalId: calendar.url,
           name: calendar.displayName ?? "",
-          primary: false,
+          // FIXME Find a better way to set the primary calendar
+          primary: index === 0,
           integration: this.integrationName,
         }));
     } catch (reason) {

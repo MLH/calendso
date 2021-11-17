@@ -1,5 +1,6 @@
-import MemberListItem from "./MemberListItem";
 import { Member } from "@lib/member";
+
+import MemberListItem from "./MemberListItem";
 
 export default function MemberList(props: {
   members: Member[];
@@ -16,7 +17,7 @@ export default function MemberList(props: {
 
   return (
     <div>
-      <ul className="px-4 mb-2 bg-white border divide-y divide-gray-200 rounded">
+      <ul className="px-6 mb-2 -mx-6 bg-white border divide-y divide-gray-200 rounded sm:px-4 sm:mx-0">
         {props.members.map((member) => (
           <MemberListItem
             onChange={props.onChange}

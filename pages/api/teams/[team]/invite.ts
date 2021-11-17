@@ -1,10 +1,15 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import prisma from "../../../../lib/prisma";
-import createInvitationEmail from "../../../../lib/emails/invitation";
-import { getSession } from "@lib/auth";
 import { randomBytes } from "crypto";
+import type { NextApiRequest, NextApiResponse } from "next";
+
+import { getSession } from "@lib/auth";
+import { createInvitationEmail } from "@lib/emails/invitation";
+import prisma from "@lib/prisma";
+
+import { getTranslation } from "@server/lib/i18n";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const t = await getTranslation(req.body.language ?? "en", "common");
+
   if (req.method !== "POST") {
     return res.status(400).json({ message: "Bad request" });
   }
@@ -16,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const team = await prisma.team.findFirst({
     where: {
-      id: parseInt(req.query.team),
+      id: parseInt(req.query.team as string),
     },
   });
 
@@ -66,12 +71,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
-    createInvitationEmail({
-      toEmail: req.body.usernameOrEmail,
-      from: session.user.name,
-      teamName: team.name,
-      token,
-    });
+    if (session?.user?.name && team?.name) {
+      createInvitationEmail({
+        language: t,
+        toEmail: req.body.usernameOrEmail,
+        from: session.user.name,
+        teamName: team.name,
+        token,
+      });
+    }
 
     return res.status(201).json({});
   }
@@ -85,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         role: req.body.role,
       },
     });
-  } catch (err) {
+  } catch (err: any) {
     if (err.code === "P2002") {
       // unique constraint violation
       return res.status(409).json({
@@ -97,8 +105,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // inform user of membership by email
-  if (req.body.sendEmailInvitation) {
+  if (req.body.sendEmailInvitation && session?.user?.name && team?.name) {
     createInvitationEmail({
+      language: t,
       toEmail: invitee.email,
       from: session.user.name,
       teamName: team.name,

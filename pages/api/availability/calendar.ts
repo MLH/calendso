@@ -1,17 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+
 import { getSession } from "@lib/auth";
-import prisma from "../../../lib/prisma";
+
 import { IntegrationCalendar, listCalendars } from "../../../lib/calendarClient";
+import prisma from "../../../lib/prisma";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession({ req: req });
 
-  if (!session) {
+  if (!session?.user?.id) {
     res.status(401).json({ message: "Not authenticated" });
     return;
   }
 
-  const currentUser = await prisma.user.findFirst({
+  const currentUser = await prisma.user.findUnique({
     where: {
       id: session.user.id,
     },
@@ -22,17 +24,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     },
   });
 
+  if (!currentUser) {
+    res.status(401).json({ message: "Not authenticated" });
+    return;
+  }
+
   if (req.method == "POST") {
-    await prisma.selectedCalendar.create({
-      data: {
-        user: {
-          connect: {
-            id: currentUser.id,
-          },
+    await prisma.selectedCalendar.upsert({
+      where: {
+        userId_integration_externalId: {
+          userId: currentUser.id,
+          integration: req.body.integration,
+          externalId: req.body.externalId,
         },
+      },
+      create: {
+        userId: currentUser.id,
         integration: req.body.integration,
         externalId: req.body.externalId,
       },
+      // already exists
+      update: {},
     });
     res.status(200).json({ message: "Calendar Selection Saved" });
   }

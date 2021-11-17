@@ -1,15 +1,22 @@
-import { User } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import { GetServerSidePropsContext } from "next";
+
 import { asStringOrNull } from "@lib/asStringOrNull";
 import prisma from "@lib/prisma";
 import { inferSSRProps } from "@lib/types/inferSSRProps";
-import { GetServerSidePropsContext } from "next";
+
 import AvailabilityPage from "@components/booking/pages/AvailabilityPage";
 
-export default function Type(props: inferSSRProps<typeof getServerSideProps>) {
+import { ssrInit } from "@server/lib/ssr";
+
+export type AvailabilityPageProps = inferSSRProps<typeof getServerSideProps>;
+
+export default function Type(props: AvailabilityPageProps) {
   return <AvailabilityPage {...props} />;
 }
 
 export const getServerSideProps = async (context: GetServerSidePropsContext) => {
+  const ssr = await ssrInit(context);
   // get query params and typecast them to string
   // (would be even better to assert them instead of typecasting)
   const userParam = asStringOrNull(context.query.user);
@@ -20,7 +27,33 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     throw new Error(`File is not named [type]/[user]`);
   }
 
-  const user: User = await prisma.user.findUnique({
+  const eventTypeSelect = Prisma.validator<Prisma.EventTypeSelect>()({
+    id: true,
+    title: true,
+    availability: true,
+    description: true,
+    length: true,
+    price: true,
+    currency: true,
+    periodType: true,
+    periodStartDate: true,
+    periodEndDate: true,
+    periodDays: true,
+    periodCountCalendarDays: true,
+    schedulingType: true,
+    minimumBookingNotice: true,
+    users: {
+      select: {
+        avatar: true,
+        name: true,
+        username: true,
+        hideBranding: true,
+        plan: true,
+      },
+    },
+  });
+
+  const user = await prisma.user.findUnique({
     where: {
       username: userParam.toLowerCase(),
     },
@@ -37,6 +70,7 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
       weekStart: true,
       availability: true,
       hideBranding: true,
+      brandColor: true,
       theme: true,
       plan: true,
       eventTypes: {
@@ -50,20 +84,7 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
             },
           ],
         },
-        select: {
-          id: true,
-          title: true,
-          availability: true,
-          description: true,
-          length: true,
-          users: {
-            select: {
-              avatar: true,
-              name: true,
-              username: true,
-            },
-          },
-        },
+        select: eventTypeSelect,
       },
     },
   });
@@ -86,20 +107,7 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
           },
         ],
       },
-      select: {
-        id: true,
-        title: true,
-        availability: true,
-        description: true,
-        length: true,
-        users: {
-          select: {
-            avatar: true,
-            name: true,
-            username: true,
-          },
-        },
-      },
+      select: eventTypeSelect,
     });
     if (!eventTypeBackwardsCompat) {
       return {
@@ -110,11 +118,13 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
       avatar: user.avatar,
       name: user.name,
       username: user.username,
+      hideBranding: user.hideBranding,
+      plan: user.plan,
     });
     user.eventTypes.push(eventTypeBackwardsCompat);
   }
 
-  const eventType = user.eventTypes[0];
+  const [eventType] = user.eventTypes;
 
   // check this is the first event
 
@@ -146,9 +156,13 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
       } as const;
     }
   }*/
-  const getWorkingHours = (providesAvailability: { availability: Availability[] }) =>
-    providesAvailability.availability && providesAvailability.availability.length
-      ? providesAvailability.availability
+  const getWorkingHours = (availability: typeof user.availability | typeof eventType.availability) =>
+    availability && availability.length
+      ? availability.map((schedule) => ({
+          ...schedule,
+          startTime: schedule.startTime.getHours() * 60 + schedule.startTime.getMinutes(),
+          endTime: schedule.endTime.getHours() * 60 + schedule.endTime.getMinutes(),
+        }))
       : null;
 
   const workingHours =
@@ -169,6 +183,8 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     periodEndDate: eventType.periodEndDate?.toString() ?? null,
   });
 
+  eventTypeObject.availability = [];
+
   return {
     props: {
       profile: {
@@ -176,10 +192,13 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
         image: user.avatar,
         slug: user.username,
         theme: user.theme,
+        weekStart: user.weekStart,
+        brandColor: user.brandColor,
       },
       date: dateParam,
       eventType: eventTypeObject,
       workingHours,
+      trpcState: ssr.dehydrate(),
     },
   };
 };
