@@ -85,7 +85,7 @@ export default function Login({ csrfToken }: inferSSRProps<typeof getServerSideP
       )}
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <img className="h-6 mx-auto" src="/calendso-logo-white-word.svg" alt="Cal.com Logo" />
+        <img className="h-12 mx-auto" src="/mlh-logo-color.svg" alt="Cal.com Logo" />
         <h2 className="font-cal mt-6 text-center text-3xl font-bold text-neutral-900">
           {t("sign_in_account")}
         </h2>
@@ -175,12 +175,6 @@ export default function Login({ csrfToken }: inferSSRProps<typeof getServerSideP
 
             {errorMessage && <p className="mt-1 text-sm text-red-700">{errorMessage}</p>}
           </form>
-        </div>
-        <div className="mt-4 text-neutral-600 text-center text-sm">
-          {t("dont_have_an_account")} {/* replace this with your account creation flow */}
-          <a href="https://cal.com/signup" className="font-medium text-neutral-900">
-            {t("create_an_account")}
-          </a>
         </div>
       </div>
 
