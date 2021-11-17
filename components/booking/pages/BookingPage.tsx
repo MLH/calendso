@@ -13,13 +13,12 @@ import { stringify } from "querystring";
 import { useCallback, useEffect, useState } from "react";
 import { FormattedNumber, IntlProvider } from "react-intl";
 import { ReactMultiEmail } from "react-multi-email";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
 
 import { createPaymentLink } from "@ee/lib/stripe/client";
 
 import { asStringOrNull } from "@lib/asStringOrNull";
 import { timeZone } from "@lib/clock";
+import { useLocale } from "@lib/hooks/useLocale";
 import useTheme from "@lib/hooks/useTheme";
 import { LocationType } from "@lib/location";
 import createBooking from "@lib/mutations/bookings/create-booking";
@@ -27,8 +26,10 @@ import { parseZone } from "@lib/parseZone";
 import { collectPageParameters, telemetryEventTypes, useTelemetry } from "@lib/telemetry";
 import { BookingCreateBody } from "@lib/types/booking";
 
+import CustomBranding from "@components/CustomBranding";
 import AvatarGroup from "@components/ui/AvatarGroup";
 import { Button } from "@components/ui/Button";
+import PhoneInput from "@components/ui/form/PhoneInput";
 
 import { BookPageProps } from "../../../pages/[user]/book";
 import { TeamBookingPageProps } from "../../../pages/team/[slug]/book";
@@ -36,6 +37,7 @@ import { TeamBookingPageProps } from "../../../pages/team/[slug]/book";
 type BookingPageProps = BookPageProps | TeamBookingPageProps;
 
 const BookingPage = (props: BookingPageProps) => {
+  const { t, i18n } = useLocale();
   const router = useRouter();
   const { rescheduleUid } = router.query;
   const { isReady } = useTheme(props.profile.theme);
@@ -67,10 +69,11 @@ const BookingPage = (props: BookingPageProps) => {
 
   // TODO: Move to translations
   const locationLabels = {
-    [LocationType.InPerson]: "Link or In-person meeting",
-    [LocationType.Phone]: "Phone call",
+    [LocationType.InPerson]: t("in_person_meeting"),
+    [LocationType.Phone]: t("phone_call"),
     [LocationType.GoogleMeet]: "Google Meet",
     [LocationType.Zoom]: "Zoom Video",
+    [LocationType.Daily]: "Daily.co Video",
   };
 
   const _bookingHandler = (event) => {
@@ -84,7 +87,7 @@ const BookingPage = (props: BookingPageProps) => {
             const data = event.target["custom_" + input.id];
             if (data) {
               if (input.type === EventTypeCustomInputType.BOOL) {
-                return input.label + "\n" + (data.checked ? "Yes" : "No");
+                return input.label + "\n" + (data.checked ? t("yes") : t("no"));
               } else {
                 return input.label + "\n" + data.value;
               }
@@ -93,7 +96,7 @@ const BookingPage = (props: BookingPageProps) => {
           .join("\n\n");
       }
       if (!!notes && !!event.target.notes.value) {
-        notes += "\n\nAdditional notes:\n" + event.target.notes.value;
+        notes += `\n\n${t("additional_notes")}:\n` + event.target.notes.value;
       } else {
         notes += event.target.notes.value;
       }
@@ -107,6 +110,7 @@ const BookingPage = (props: BookingPageProps) => {
         guests: guestEmails,
         eventTypeId: props.eventType.id,
         timeZone: timeZone(),
+        language: i18n.language,
       };
       if (typeof rescheduleUid === "string") payload.rescheduleUid = rescheduleUid;
       if (typeof router.query.user === "string") payload.user = router.query.user;
@@ -149,7 +153,7 @@ const BookingPage = (props: BookingPageProps) => {
 
         if (payload["location"]) {
           if (payload["location"].includes("integration")) {
-            params.location = "Web conferencing details to follow.";
+            params.location = t("web_conferencing_details_to_follow");
           } else {
             params.location = payload["location"];
           }
@@ -159,7 +163,12 @@ const BookingPage = (props: BookingPageProps) => {
         let successUrl = `/success?${query}`;
 
         if (content?.paymentUid) {
-          successUrl = createPaymentLink(content?.paymentUid, payload.name, date, false);
+          successUrl = createPaymentLink({
+            paymentUid: content?.paymentUid,
+            name: payload.name,
+            date,
+            absolute: false,
+          });
         }
 
         await router.push(successUrl);
@@ -173,25 +182,33 @@ const BookingPage = (props: BookingPageProps) => {
     book();
   };
 
-  const bookingHandler = useCallback(_bookingHandler, []);
+  const bookingHandler = useCallback(_bookingHandler, [guestEmails]);
 
   return (
     <div>
       <Head>
         <title>
-          {rescheduleUid ? "Reschedule" : "Confirm"} your {props.eventType.title} with {props.profile.name} |
-          Cal.com
+          {rescheduleUid
+            ? t("booking_reschedule_confirmation", {
+                eventTypeTitle: props.eventType.title,
+                profileName: props.profile.name,
+              })
+            : t("booking_confirmation", {
+                eventTypeTitle: props.eventType.title,
+                profileName: props.profile.name,
+              })}{" "}
+          | Cal.com
         </title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
-      <main className="max-w-3xl mx-auto my-0 sm:my-24">
+      <CustomBranding val={props.profile.brandColor} />
+      <main className="max-w-3xl mx-auto my-0 rounded-sm sm:my-24 sm:border sm:dark:border-gray-600">
         {isReady && (
           <div className="overflow-hidden bg-white border border-gray-200 dark:bg-neutral-900 dark:border-0 sm:rounded-sm">
             <div className="px-4 py-5 sm:flex sm:p-4">
-              <div className="sm:w-1/2 sm:border-r sm:dark:border-black">
+              <div className="sm:w-1/2 sm:border-r sm:dark:border-gray-800">
                 <AvatarGroup
-                  size={16}
+                  size={14}
                   items={[{ image: props.profile.image, alt: props.profile.name }].concat(
                     props.eventType.users
                       .filter((user) => user.name !== props.profile.name)
@@ -201,7 +218,7 @@ const BookingPage = (props: BookingPageProps) => {
                       }))
                   )}
                 />
-                <h2 className="font-medium text-gray-500 font-cal dark:text-gray-300">
+                <h2 className="mt-2 font-medium text-gray-500 font-cal dark:text-gray-300">
                   {props.profile.name}
                 </h2>
                 <h1 className="mb-4 text-3xl font-semibold text-gray-800 dark:text-white">
@@ -209,7 +226,7 @@ const BookingPage = (props: BookingPageProps) => {
                 </h1>
                 <p className="mb-2 text-gray-500">
                   <ClockIcon className="inline-block w-4 h-4 mr-1 -mt-1" />
-                  {props.eventType.length} minutes
+                  {props.eventType.length} {t("minutes")}
                 </p>
                 {props.eventType.price > 0 && (
                   <p className="px-2 py-1 mb-1 -ml-2 text-gray-500">
@@ -239,7 +256,7 @@ const BookingPage = (props: BookingPageProps) => {
                 <form onSubmit={bookingHandler}>
                   <div className="mb-4">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-white">
-                      Your name
+                      {t("your_name")}
                     </label>
                     <div className="mt-1">
                       <input
@@ -247,7 +264,7 @@ const BookingPage = (props: BookingPageProps) => {
                         name="name"
                         id="name"
                         required
-                        className="block w-full border-gray-300 rounded-md shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-black sm:text-sm"
+                        className="block w-full border-gray-300 rounded-sm shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-brand sm:text-sm"
                         placeholder="John Doe"
                         defaultValue={props.booking ? props.booking.attendees[0].name : ""}
                       />
@@ -257,15 +274,16 @@ const BookingPage = (props: BookingPageProps) => {
                     <label
                       htmlFor="email"
                       className="block text-sm font-medium text-gray-700 dark:text-white">
-                      Email address
+                      {t("email_address")}
                     </label>
                     <div className="mt-1">
                       <input
                         type="email"
                         name="email"
                         id="email"
+                        inputMode="email"
                         required
-                        className="block w-full border-gray-300 rounded-md shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-black sm:text-sm"
+                        className="block w-full border-gray-300 rounded-sm shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-brand sm:text-sm"
                         placeholder="you@example.com"
                         defaultValue={props.booking ? props.booking.attendees[0].email : ""}
                       />
@@ -274,7 +292,7 @@ const BookingPage = (props: BookingPageProps) => {
                   {locations.length > 1 && (
                     <div className="mb-4">
                       <span className="block text-sm font-medium text-gray-700 dark:text-white">
-                        Location
+                        {t("location")}
                       </span>
                       {locations.map((location) => (
                         <label key={location.type} className="block">
@@ -299,19 +317,10 @@ const BookingPage = (props: BookingPageProps) => {
                       <label
                         htmlFor="phone"
                         className="block text-sm font-medium text-gray-700 dark:text-white">
-                        Phone Number
+                        {t("phone_number")}
                       </label>
                       <div className="mt-1">
-                        <PhoneInput
-                          name="phone"
-                          placeholder="Enter phone number"
-                          id="phone"
-                          required
-                          className="block w-full border-gray-300 rounded-md shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-black sm:text-sm"
-                          onChange={() => {
-                            /* DO NOT REMOVE: Callback required by PhoneInput, comment added to satisfy eslint:no-empty-function */
-                          }}
-                        />
+                        <PhoneInput name="phone" placeholder={t("enter_phone_number")} id="phone" required />
                       </div>
                     </div>
                   )}
@@ -333,7 +342,7 @@ const BookingPage = (props: BookingPageProps) => {
                               id={"custom_" + input.id}
                               required={input.required}
                               rows={3}
-                              className="block w-full border-gray-300 rounded-md shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-black sm:text-sm"
+                              className="block w-full border-gray-300 rounded-sm shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-brand sm:text-sm"
                               placeholder={input.placeholder}
                             />
                           )}
@@ -343,7 +352,7 @@ const BookingPage = (props: BookingPageProps) => {
                               name={"custom_" + input.id}
                               id={"custom_" + input.id}
                               required={input.required}
-                              className="block w-full border-gray-300 rounded-md shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-black sm:text-sm"
+                              className="block w-full border-gray-300 rounded-sm shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-brand sm:text-sm"
                               placeholder={input.placeholder}
                             />
                           )}
@@ -353,7 +362,7 @@ const BookingPage = (props: BookingPageProps) => {
                               name={"custom_" + input.id}
                               id={"custom_" + input.id}
                               required={input.required}
-                              className="block w-full border-gray-300 rounded-md shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-black sm:text-sm"
+                              className="block w-full border-gray-300 rounded-sm shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-brand sm:text-sm"
                               placeholder=""
                             />
                           )}
@@ -383,7 +392,7 @@ const BookingPage = (props: BookingPageProps) => {
                           onClick={toggleGuestEmailInput}
                           htmlFor="guests"
                           className="block mb-1 text-sm font-medium text-blue-500 dark:text-white hover:cursor-pointer">
-                          + Additional Guests
+                          {t("additional_guests")}
                         </label>
                       )}
                       {guestToggle && (
@@ -391,7 +400,7 @@ const BookingPage = (props: BookingPageProps) => {
                           <label
                             htmlFor="guests"
                             className="block mb-1 text-sm font-medium text-gray-700 dark:text-white">
-                            Guests
+                            {t("guests")}
                           </label>
                           <ReactMultiEmail
                             className="relative"
@@ -423,24 +432,24 @@ const BookingPage = (props: BookingPageProps) => {
                     <label
                       htmlFor="notes"
                       className="block mb-1 text-sm font-medium text-gray-700 dark:text-white">
-                      Additional notes
+                      {t("additional_notes")}
                     </label>
                     <textarea
                       name="notes"
                       id="notes"
                       rows={3}
-                      className="block w-full border-gray-300 rounded-md shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-black sm:text-sm"
-                      placeholder="Please share anything that will help prepare for our meeting."
+                      className="block w-full border-gray-300 rounded-sm shadow-sm dark:bg-black dark:text-white dark:border-gray-900 focus:ring-black focus:border-brand sm:text-sm"
+                      placeholder={t("share_additional_notes")}
                       defaultValue={props.booking ? props.booking.description : ""}
                     />
                   </div>
                   <div className="flex items-start space-x-2">
                     {/* TODO: add styling props to <Button variant="" color="" /> and get rid of btn-primary */}
                     <Button type="submit" loading={loading}>
-                      {rescheduleUid ? "Reschedule" : "Confirm"}
+                      {rescheduleUid ? t("reschedule") : t("confirm")}
                     </Button>
                     <Button color="secondary" type="button" onClick={() => router.back()}>
-                      Cancel
+                      {t("cancel")}
                     </Button>
                   </div>
                 </form>
@@ -452,7 +461,7 @@ const BookingPage = (props: BookingPageProps) => {
                       </div>
                       <div className="ml-3">
                         <p className="text-sm text-yellow-700">
-                          Could not {rescheduleUid ? "reschedule" : "book"} the meeting.
+                          {rescheduleUid ? t("reschedule_fail") : t("booking_fail")}
                         </p>
                       </div>
                     </div>

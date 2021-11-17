@@ -1,6 +1,13 @@
 import React from "react";
 
-const UsernameInput = React.forwardRef((props, ref) => (
+interface UsernameInputProps extends React.ComponentPropsWithRef<"input"> {
+  label?: string;
+}
+
+/**
+ * @deprecated Use <TextField addOnLeading={}> to achieve the same effect.
+ */
+const UsernameInput = React.forwardRef<HTMLInputElement, UsernameInputProps>((props, ref) => (
   // todo, check if username is already taken here?
   <div>
     <label htmlFor="username" className="block text-sm font-medium text-gray-700">
@@ -18,7 +25,7 @@ const UsernameInput = React.forwardRef((props, ref) => (
         autoComplete="username"
         required
         {...props}
-        className="flex-grow block w-full min-w-0 lowercase border-gray-300 rounded-none rounded-r-sm focus:ring-black focus:border-black sm:text-sm"
+        className="flex-grow block w-full min-w-0 lowercase border-gray-300 rounded-none rounded-r-sm focus:ring-black focus:border-brand sm:text-sm"
       />
     </div>
   </div>

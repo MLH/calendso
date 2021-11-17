@@ -1,17 +1,23 @@
 import { BookingStatus } from "@prisma/client";
 import async from "async";
+import { NextApiRequest, NextApiResponse } from "next";
 
 import { refund } from "@ee/lib/stripe/server";
 
 import { asStringOrNull } from "@lib/asStringOrNull";
 import { getSession } from "@lib/auth";
 import { CalendarEvent, deleteEvent } from "@lib/calendarClient";
+import { FAKE_DAILY_CREDENTIAL } from "@lib/integrations/Daily/DailyVideoApiAdapter";
 import prisma from "@lib/prisma";
 import { deleteMeeting } from "@lib/videoClient";
+import sendPayload from "@lib/webhooks/sendPayload";
+import getSubscriberUrls from "@lib/webhooks/subscriberUrls";
 
-export default async function handler(req, res) {
+import { getTranslation } from "@server/lib/i18n";
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // just bail if it not a DELETE
-  if (req.method !== "DELETE") {
+  if (req.method !== "DELETE" && req.method !== "POST") {
     return res.status(405).end();
   }
 
@@ -24,6 +30,7 @@ export default async function handler(req, res) {
     },
     select: {
       id: true,
+      userId: true,
       user: {
         select: {
           id: true,
@@ -34,6 +41,7 @@ export default async function handler(req, res) {
         },
       },
       attendees: true,
+      location: true,
       references: {
         select: {
           uid: true,
@@ -42,12 +50,12 @@ export default async function handler(req, res) {
       },
       payment: true,
       paid: true,
-      location: true,
       title: true,
       description: true,
       startTime: true,
       endTime: true,
       uid: true,
+      eventTypeId: true,
     },
   });
 
@@ -55,9 +63,57 @@ export default async function handler(req, res) {
     return res.status(404).end();
   }
 
-  if ((!session || session.user?.id != bookingToDelete.user?.id) && bookingToDelete.startTime < new Date()) {
+  if ((!session || session.user?.id !== bookingToDelete.user?.id) && bookingToDelete.startTime < new Date()) {
     return res.status(403).json({ message: "Cannot cancel past events" });
   }
+
+  if (!bookingToDelete.userId) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  const organizer = await prisma.user.findFirst({
+    where: {
+      id: bookingToDelete.userId,
+    },
+    select: {
+      name: true,
+      email: true,
+      timeZone: true,
+    },
+    rejectOnNotFound: true,
+  });
+
+  const t = await getTranslation(req.body.language ?? "en", "common");
+
+  const evt: CalendarEvent = {
+    type: bookingToDelete?.title,
+    title: bookingToDelete?.title,
+    description: bookingToDelete?.description || "",
+    startTime: bookingToDelete?.startTime.toString(),
+    endTime: bookingToDelete?.endTime.toString(),
+    organizer: {
+      email: organizer.email,
+      name: organizer.name ?? "Nameless",
+      timeZone: organizer.timeZone,
+    },
+    attendees: bookingToDelete?.attendees.map((attendee) => {
+      const retObj = { name: attendee.name, email: attendee.email, timeZone: attendee.timeZone };
+      return retObj;
+    }),
+    uid: bookingToDelete?.uid,
+    language: t,
+  };
+
+  // Hook up the webhook logic here
+  const eventTrigger = "BOOKING_CANCELLED";
+  // Send Webhook call if hooked to BOOKING.CANCELLED
+  const subscriberUrls = await getSubscriberUrls(bookingToDelete.userId, eventTrigger);
+  const promises = subscriberUrls.map((url) =>
+    sendPayload(eventTrigger, new Date().toISOString(), url, evt).catch((e) => {
+      console.error(`Error executing webhook for event: ${eventTrigger}, URL: ${url}`, e);
+    })
+  );
+  await Promise.all(promises);
 
   // by cancelling first, and blocking whilst doing so; we can ensure a cancel
   // action always succeeds even if subsequent integrations fail cancellation.
@@ -69,6 +125,10 @@ export default async function handler(req, res) {
       status: BookingStatus.CANCELLED,
     },
   });
+
+  if (bookingToDelete.location === "integrations:daily") {
+    bookingToDelete.user.credentials.push(FAKE_DAILY_CREDENTIAL);
+  }
 
   const apiDeletes = async.mapLimit(bookingToDelete.user.credentials, 5, async (credential) => {
     const bookingRefUid = bookingToDelete.references.filter((ref) => ref.type === credential.type)[0]?.uid;
@@ -95,6 +155,8 @@ export default async function handler(req, res) {
       },
       attendees: bookingToDelete.attendees,
       location: bookingToDelete.location ?? "",
+      uid: bookingToDelete.uid ?? "",
+      language: t,
     };
     await refund(bookingToDelete, evt);
     await prisma.booking.update({

@@ -10,10 +10,12 @@ import { FormattedNumber, IntlProvider } from "react-intl";
 
 import { asStringOrNull } from "@lib/asStringOrNull";
 import { timeZone } from "@lib/clock";
+import { useLocale } from "@lib/hooks/useLocale";
 import useTheme from "@lib/hooks/useTheme";
 import { isBrandingHidden } from "@lib/isBrandingHidden";
 import { collectPageParameters, telemetryEventTypes, useTelemetry } from "@lib/telemetry";
 
+import CustomBranding from "@components/CustomBranding";
 import AvailableTimes from "@components/booking/AvailableTimes";
 import DatePicker from "@components/booking/DatePicker";
 import TimeOptions from "@components/booking/TimeOptions";
@@ -22,14 +24,18 @@ import AvatarGroup from "@components/ui/AvatarGroup";
 import PoweredByCal from "@components/ui/PoweredByCal";
 
 import { AvailabilityPageProps } from "../../../pages/[user]/[type]";
+import { AvailabilityTeamPageProps } from "../../../pages/team/[slug]/[type]";
 
 dayjs.extend(utc);
 dayjs.extend(customParseFormat);
 
-const AvailabilityPage = ({ profile, eventType, workingHours }: AvailabilityPageProps) => {
+type Props = AvailabilityTeamPageProps | AvailabilityPageProps;
+
+const AvailabilityPage = ({ profile, eventType, workingHours }: Props) => {
   const router = useRouter();
   const { rescheduleUid } = router.query;
   const { isReady } = useTheme(profile.theme);
+  const { t } = useLocale();
 
   const selectedDate = useMemo(() => {
     const dateString = asStringOrNull(router.query.date);
@@ -85,11 +91,12 @@ const AvailabilityPage = ({ profile, eventType, workingHours }: AvailabilityPage
   return (
     <>
       <HeadSeo
-        title={`${rescheduleUid ? "Reschedule" : ""} ${eventType.title} | ${profile.name}`}
-        description={`${rescheduleUid ? "Reschedule" : ""} ${eventType.title}`}
+        title={`${rescheduleUid ? t("reschedule") : ""} ${eventType.title} | ${profile.name}`}
+        description={`${rescheduleUid ? t("reschedule") : ""} ${eventType.title}`}
         name={profile.name}
         avatar={profile.image}
       />
+      <CustomBranding val={profile.brandColor} />
       <div>
         <main
           className={
@@ -119,7 +126,7 @@ const AvailabilityPage = ({ profile, eventType, workingHours }: AvailabilityPage
                       {eventType.title}
                       <div>
                         <ClockIcon className="inline-block w-4 h-4 mr-1 -mt-1" />
-                        {eventType.length} minutes
+                        {eventType.length} {t("minutes")}
                       </div>
                       {eventType.price > 0 && (
                         <div>
@@ -157,13 +164,13 @@ const AvailabilityPage = ({ profile, eventType, workingHours }: AvailabilityPage
                     size={10}
                     truncateAfter={3}
                   />
-                  <h2 className="font-medium text-gray-500 dark:text-gray-300 mt-3">{profile.name}</h2>
-                  <h1 className="font-cal mb-4 text-3xl font-semibold text-gray-800 dark:text-white">
+                  <h2 className="mt-3 font-medium text-gray-500 dark:text-gray-300">{profile.name}</h2>
+                  <h1 className="mb-4 text-3xl font-semibold text-gray-800 font-cal dark:text-white">
                     {eventType.title}
                   </h1>
                   <p className="px-2 py-1 mb-1 -ml-2 text-gray-500">
                     <ClockIcon className="inline-block w-4 h-4 mr-1 -mt-1" />
-                    {eventType.length} minutes
+                    {eventType.length} {t("minutes")}
                   </p>
                   {eventType.price > 0 && (
                     <p className="px-2 py-1 mb-1 -ml-2 text-gray-500">
@@ -191,7 +198,7 @@ const AvailabilityPage = ({ profile, eventType, workingHours }: AvailabilityPage
                   periodCountCalendarDays={eventType?.periodCountCalendarDays}
                   onDatePicked={changeDate}
                   workingHours={workingHours}
-                  weekStart="Sunday"
+                  weekStart={profile.weekStart || "Sunday"}
                   eventLength={eventType.length}
                   minimumBookingNotice={eventType.minimumBookingNotice}
                 />

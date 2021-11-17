@@ -1,9 +1,10 @@
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { Maybe } from "@trpc/server";
 
 import classNames from "@lib/classNames";
 import { defaultAvatarSrc } from "@lib/profile";
+
+import { Maybe } from "@trpc/server";
 
 export type AvatarProps = {
   className?: string;
@@ -35,7 +36,7 @@ export default function Avatar(props: AvatarProps) {
   return title ? (
     <Tooltip.Tooltip delayDuration={300}>
       <Tooltip.TooltipTrigger className="cursor-default">{avatar}</Tooltip.TooltipTrigger>
-      <Tooltip.Content className="p-2 rounded-sm text-sm bg-black text-white shadow-sm">
+      <Tooltip.Content className="p-2 rounded-sm text-sm bg-brand text-white shadow-sm">
         <Tooltip.Arrow />
         {title}
       </Tooltip.Content>

@@ -1,16 +1,7 @@
-import { SchedulingType } from "@prisma/client";
+import { SchedulingType, EventType, Availability } from "@prisma/client";
 
-export type OpeningHours = {
-  days: number[];
-  startTime: number;
-  endTime: number;
-};
-
-export type DateOverride = {
-  date: string;
-  startTime: number;
-  endTime: number;
-};
+export type OpeningHours = Pick<Availability, "days" | "startTime" | "endTime">;
+export type DateOverride = Pick<Availability, "date" | "startTime" | "endTime">;
 
 export type AdvancedOptions = {
   eventName?: string;
@@ -30,6 +21,10 @@ export type AdvancedOptions = {
     label: string;
     avatar: string;
   }[];
+  availability?: { openingHours: OpeningHours[]; dateOverrides: DateOverride[] };
+  customInputs?: EventTypeCustomInput[];
+  timeZone: string;
+  hidden: boolean;
 };
 
 export type EventTypeCustomInput = {
@@ -45,7 +40,12 @@ export type CreateEventType = {
   slug: string;
   description: string;
   length: number;
+  teamId?: number;
   schedulingType?: SchedulingType;
+};
+
+export type CreateEventTypeResponse = {
+  eventType: EventType;
 };
 
 export type EventTypeInput = AdvancedOptions & {

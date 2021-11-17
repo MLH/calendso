@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { GetServerSidePropsContext } from "next";
-import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 
 import { asStringOrNull } from "@lib/asStringOrNull";
-import { extractLocaleInfo } from "@lib/core/i18n/i18n.utils";
 import prisma from "@lib/prisma";
 import { inferSSRProps } from "@lib/types/inferSSRProps";
 
 import AvailabilityPage from "@components/booking/pages/AvailabilityPage";
+
+import { ssrInit } from "@server/lib/ssr";
 
 export type AvailabilityPageProps = inferSSRProps<typeof getServerSideProps>;
 
@@ -16,7 +16,7 @@ export default function Type(props: AvailabilityPageProps) {
 }
 
 export const getServerSideProps = async (context: GetServerSidePropsContext) => {
-  const locale = await extractLocaleInfo(context.req);
+  const ssr = await ssrInit(context);
   // get query params and typecast them to string
   // (would be even better to assert them instead of typecasting)
   const userParam = asStringOrNull(context.query.user);
@@ -70,6 +70,7 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
       weekStart: true,
       availability: true,
       hideBranding: true,
+      brandColor: true,
       theme: true,
       plan: true,
       eventTypes: {
@@ -156,7 +157,13 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     }
   }*/
   const getWorkingHours = (availability: typeof user.availability | typeof eventType.availability) =>
-    availability && availability.length ? availability : null;
+    availability && availability.length
+      ? availability.map((schedule) => ({
+          ...schedule,
+          startTime: schedule.startTime.getHours() * 60 + schedule.startTime.getMinutes(),
+          endTime: schedule.endTime.getHours() * 60 + schedule.endTime.getMinutes(),
+        }))
+      : null;
 
   const workingHours =
     getWorkingHours(eventType.availability) ||
@@ -176,19 +183,22 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     periodEndDate: eventType.periodEndDate?.toString() ?? null,
   });
 
+  eventTypeObject.availability = [];
+
   return {
     props: {
-      localeProp: locale,
       profile: {
         name: user.name,
         image: user.avatar,
         slug: user.username,
         theme: user.theme,
+        weekStart: user.weekStart,
+        brandColor: user.brandColor,
       },
       date: dateParam,
       eventType: eventTypeObject,
       workingHours,
-      ...(await serverSideTranslations(locale, ["common"])),
+      trpcState: ssr.dehydrate(),
     },
   };
 };
