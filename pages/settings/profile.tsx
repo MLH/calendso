@@ -234,8 +234,8 @@ function SettingsView(props: ComponentProps<typeof Settings> & { localeProp: str
                 />
                 <p className="mt-2 text-sm text-gray-500" id="email-description">
                   {t("change_email_contact")}{" "}
-                  <a className="text-blue-500" href="mailto:help@cal.com">
-                    help@cal.com
+                  <a className="text-blue-500" href="mailto:engineering@mlh.io">
+                    engineering@mlh.io
                   </a>
                 </p>
               </div>
