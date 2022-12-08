@@ -1,18 +1,8 @@
+import cx from "classnames";
 import { GetStaticPropsContext } from "next";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import cx from 'classnames';
-
-import { COMPANY_NAME, DEVELOPER_DOCS, DOCS_URL, JOIN_SLACK, WEBSITE_URL } from "@calcom/lib/constants";
-import { Icon } from "@calcom/ui";
-
-import { useLocale } from "@lib/hooks/useLocale";
-
-import { HeadSeo } from "@components/seo/head-seo";
-
-import { ssgInit } from "@server/lib/ssg";
-
 import {
   backgroundColor,
   context,
@@ -27,6 +17,15 @@ import {
   signContainer,
   signTextColor,
 } from "styles/404.module.css";
+
+import { COMPANY_NAME, DEVELOPER_DOCS, DOCS_URL, JOIN_SLACK, WEBSITE_URL } from "@calcom/lib/constants";
+import { Icon } from "@calcom/ui";
+
+import { useLocale } from "@lib/hooks/useLocale";
+
+import { HeadSeo } from "@components/seo/head-seo";
+
+import { ssgInit } from "@server/lib/ssg";
 
 export default function Custom404() {
   const { t } = useLocale();
@@ -69,11 +68,11 @@ export default function Custom404() {
           noindex: true,
         }}
       />
-        <div className={cx(sign, errorPageWrapper, backgroundColor)}>
+      <div className={cx(sign, errorPageWrapper, backgroundColor)}>
         <div className={signContainer}>
-          <div className={nob}></div>
-          <div className={cx(post, left)}></div>
-          <div className={cx(post, right)}></div>
+          <div className={nob} />
+          <div className={cx(post, left)} />
+          <div className={cx(post, right)} />
           <div className={pane}>
             <div className={cx(headline, signTextColor)}>404</div>
             <div className={cx(context, signTextColor)}>
